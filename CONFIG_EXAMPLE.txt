@@ -1,0 +1,15 @@
+# Configuración de ejemplo para WordPress XML-RPC Exploit
+
+# El script solicitará estos datos de forma interactiva:
+# 1. URL target: https://example.com/xmlrpc.php
+# 2. Usuario: admin (o el usuario WordPress que quieras atacar)
+# 3. Ruta del diccionario: /ruta/al/wordlist.txt
+# 4. Tamaño del lote: 100, 200, 300, 400 o 500
+
+# Opciones recomendadas:
+# - Para conexiones lentas: 100 passwords por lote
+# - Para conexiones normales: 200-300 passwords por lote
+# - Para conexiones rápidas: 400-500 passwords por lote
+
+# Ejemplo de ejecución:
+# python System-MultiCall.py

